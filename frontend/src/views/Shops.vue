@@ -1,7 +1,8 @@
 <template>
-  <div>
-    <el-button type="primary" @click="show = true">绑定店铺</el-button>
-    <el-table :data="rows" style="margin-top:12px">
+  <div class="page">
+    <div class="page-head"><div><h2>店铺管理</h2></div><el-button type="primary" @click="show = true">绑定店铺</el-button></div>
+    <div class="tile">
+    <el-table :data="rows">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="name" label="店铺" />
       <el-table-column prop="group_name" label="分组" />
@@ -13,6 +14,7 @@
       <el-table-column label="操作" width="280"><template #default="{ row }">
         <el-button size="small" v-if="row.adapter_type === 'DEWU_OPEN'" @click="openCred(row)">凭据</el-button><el-button size="small" @click="auth(row)">授权</el-button><el-button size="small" @click="sync(row)">同步商品</el-button></template></el-table-column>
     </el-table>
+    </div>
     <el-dialog v-model="show" title="绑定店铺">
       <el-form :model="f" label-width="110px">
         <el-form-item label="店铺名称"><el-input v-model="f.name" /></el-form-item>

@@ -1,6 +1,8 @@
 <template>
-  <div>
-    <el-form inline>
+  <div class="page">
+    <div class="page-head"><div><h2>任务记录 / 批量调价</h2></div></div>
+    <div class="tile">
+    <el-form inline class="toolbar">
       <el-form-item label="整店调价"><el-select v-model="shopId" style="width:160px"><el-option v-for="s in shops" :key="s.id" :value="s.id" :label="s.name" /></el-select></el-form-item>
       <el-checkbox v-model="dryRun">仅模拟</el-checkbox>
       <el-button type="primary" style="margin-left:12px" @click="run">创建任务</el-button>
@@ -14,6 +16,7 @@
       <el-table-column prop="created_at" label="创建时间" />
       <el-table-column label="操作"><template #default="{ row }"><el-button size="small" @click.stop="cancel(row)">取消</el-button></template></el-table-column>
     </el-table>
+    </div>
     <el-drawer v-model="drawer" size="60%" title="任务明细">
       <el-table :data="items"><el-table-column prop="listing_id" label="出价" /><el-table-column prop="status" label="状态" />
         <el-table-column label="原价"><template #default="{ row }">{{ fen2yuan(row.old_price) }}</template></el-table-column>

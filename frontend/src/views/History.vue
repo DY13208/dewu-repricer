@@ -1,4 +1,5 @@
 <template>
+  <div class="page"><div class="page-head"><div><h2>价格历史</h2></div></div><div class="tile">
   <el-table :data="rows">
     <el-table-column prop="created_at" label="时间" /><el-table-column prop="shop_name" label="店铺" /><el-table-column prop="listing_id" label="出价" />
     <el-table-column label="原价"><template #default="{ row }">{{ fen2yuan(row.old_price) }}</template></el-table-column>
@@ -7,6 +8,7 @@
     <el-table-column label="竞争价"><template #default="{ row }">{{ fen2yuan(row.competitor_price) }}</template></el-table-column>
     <el-table-column prop="reason" label="原因" />
   </el-table>
+  </div></div>
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
