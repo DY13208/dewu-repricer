@@ -53,7 +53,8 @@ public class JdbcRepricingStore implements RepricingStore {
         return new Strategy(rs.getLong("id"), Strategy.Mode.valueOf(rs.getString("mode")), Strategy.OffsetType.valueOf(rs.getString("offset_type")),
                 rs.getBigDecimal("offset_value"), (Long) rs.getObject("min_profit"), (Long) rs.getObject("min_price"), (Long) rs.getObject("max_price"),
                 rs.getBigDecimal("fee_rate"), rs.getLong("fee_min"), (Long) rs.getObject("fee_max"), rs.getLong("fulfillment_fee"),
-                Optional.ofNullable(rs.getBigDecimal("max_change_ratio")).orElse(new BigDecimal("0.15")), rs.getLong("price_step"));
+                Optional.ofNullable(rs.getBigDecimal("max_change_ratio")).orElse(new BigDecimal("0.15")), rs.getLong("price_step"),
+                Strategy.PriceRule.valueOf(Optional.ofNullable(rs.getString("price_rule")).orElse("NONE")));
     }
     private String sw(String name) { return jdbc.queryForObject("SELECT value FROM system_switches WHERE name=?", String.class, name); }
     @Override public boolean emergencyStopped() { return "ON".equals(sw("EMERGENCY_STOP")); }
@@ -74,8 +75,9 @@ public class JdbcRepricingStore implements RepricingStore {
               external_request_id=COALESCE(?,external_request_id), last_error=?, updated_at=now() WHERE id=?""",
                 st, old, tgt, comp, reason, attempts, next == null ? null : new Timestamp(next), rid, err, id);
     }
-    @Override @Transactional public void applyPrice(long shopId, long listingId, long itemId, Long old, long np, Long verified, Long comp, Long sid, String reason) {
-        jdbc.update("UPDATE shop_sku_listings SET current_price=?, last_repriced_at=now(), version=version+1 WHERE id=?", verified != null ? verified : np, listingId);
+    @Override @Transactional public void applyPrice(long shopId, long listingId, long itemId, String newExt, Long old, long np, Long verified, Long comp, Long sid, String reason) {
+        jdbc.update("UPDATE shop_sku_listings SET current_price=?, external_listing_id=COALESCE(?, external_listing_id), last_repriced_at=now(), version=version+1 WHERE id=?",
+                verified != null ? verified : np, newExt, listingId);
         jdbc.update("INSERT INTO repricing_history(shop_id,listing_id,task_item_id,old_price,new_price,verified_price,competitor_price,strategy_id,reason) VALUES (?,?,?,?,?,?,?,?,?)",
                 shopId, listingId, itemId, old, np, verified, comp, sid, reason);
     }

@@ -79,16 +79,17 @@ public class RepricingExecutor {
             UpdateResult r = call(c, a, "updateListingPrice", () -> a.updateListingPrice(sc, c.externalListingId(), d.targetPrice(), c.idempotencyKey()));
             if (r.status() == UpdateStatus.FAILED) { breaker.failure(c.shopId()); return mark(c, "FAILED", cur, d.targetPrice(), cmp, "平台拒绝: " + r.message()); }
             if (r.status() == UpdateStatus.RETRYABLE) return retry(c, r.message(), r.errorCode());
-            // 回查实际报价
+            // 回查实际报价（得物改价后 bidding_no 变化，后续以新单号回查）
+            String listingRef = r.newListingId() != null ? r.newListingId() : c.externalListingId();
             Long verified = r.effectivePrice();
             if (verified == null && r.requestId() != null) {
                 UpdateResult q = call(c, a, "getUpdateResult", () -> a.getUpdateResult(sc, r.requestId()));
                 verified = q.effectivePrice();
             }
             if (verified == null && a.capabilities().currentPrice())
-                verified = call(c, a, "getCurrentPrice", () -> a.getCurrentPrice(sc, c.externalListingId())).orElse(null);
+                verified = call(c, a, "getCurrentPrice", () -> a.getCurrentPrice(sc, listingRef)).orElse(null);
             breaker.success(c.shopId());
-            store.applyPrice(c.shopId(), c.listingId(), c.itemId(), cur, d.targetPrice(), verified, cmp, c.strategy().id(), d.reason());
+            store.applyPrice(c.shopId(), c.listingId(), c.itemId(), r.newListingId(), cur, d.targetPrice(), verified, cmp, c.strategy().id(), d.reason());
             if (verified == null || verified != d.targetPrice().longValue()) {
                 store.flagAnomaly(c.listingId(), "回查价格不一致: 目标 " + d.targetPrice() + " 实际 " + verified);
                 store.markItem(c.itemId(), "UNVERIFIED", cur, d.targetPrice(), cmp, "回查不一致", c.attempts() + 1, null, r.requestId(), null);

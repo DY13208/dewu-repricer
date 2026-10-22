@@ -19,6 +19,10 @@ public interface PlatformAdapter {
     UpdateResult updateListingPrice(ShopContext shop, String listingId, long newPrice, String idempotencyKey);
     /** 仅当平台提供官方自动跟价能力时可用。 */
     boolean enablePlatformAutoFollow(ShopContext shop, String listingId, boolean enable);
+    /** 带官方参数的版本：minPrice 为跟价下限（分），type 为平台定义的跟价类型。默认退化为简单版本。 */
+    default boolean enablePlatformAutoFollow(ShopContext shop, String listingId, boolean enable, Long minPrice, int type) {
+        return enablePlatformAutoFollow(shop, listingId, enable);
+    }
     UpdateResult getUpdateResult(ShopContext shop, String requestId);
 
     record Capabilities(boolean listProducts, boolean listListings, boolean currentPrice, boolean competitorPrice,
@@ -31,5 +35,10 @@ public interface PlatformAdapter {
     record ListingDto(String listingId, String spuId, String skuId, long price, int stock, String status) {}
     record CompetitorPrice(String skuId, Long lowestPrice, String lowestSellerRef, String source) {}
     enum UpdateStatus { ACCEPTED, SUCCESS, FAILED, RETRYABLE }
-    record UpdateResult(UpdateStatus status, String requestId, Long effectivePrice, String errorCode, String message) {}
+    /** newListingId：平台改价后返回的新出价单号（得物每次改价 bidding_no 会变，必须持久化）。 */
+    record UpdateResult(UpdateStatus status, String requestId, Long effectivePrice, String errorCode, String message, String newListingId) {
+        public UpdateResult(UpdateStatus status, String requestId, Long effectivePrice, String errorCode, String message) {
+            this(status, requestId, effectivePrice, errorCode, message, null);
+        }
+    }
 }

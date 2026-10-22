@@ -22,9 +22,22 @@ repricer:
   max-attempts: 5
   backoff-base-ms: 1000
   backoff-max-ms: 300000
+  # AES-256 凭据加密密钥（Base64 32 字节），生成：openssl rand -base64 32
+  crypto-key: ${REPRICER_CRYPTO_KEY:}
   dewu-open:
-    base-url: ${DEWU_OPEN_BASE_URL:}
-    app-key: ${DEWU_APP_KEY:}
-    app-secret: ${DEWU_APP_SECRET:}
+    env: ${DEWU_ENV:SANDBOX}                       # SANDBOX / PROD
+    prod-gateway: https://openapi.dewu.com
+    sandbox-gateway: https://openapi-sandbox.dewu.com
+    oauth-base-url: https://open.dewu.com
+    isv-app-key: ${DEWU_ISV_APP_KEY:}             # 仅 ISV 模式
+    isv-app-secret: ${DEWU_ISV_APP_SECRET:}
+    # 已获批权限包，逗号分隔：BIDDING_READ,BIDDING_WRITE,AUTO_BIDDING,LOWEST_PRICE（默认空 = 无任何能力）
+    granted-packs: ${DEWU_GRANTED_PACKS:}
+    lowest-price-enabled: ${DEWU_LOWEST_PRICE_ENABLED:false}   # 最低价接口参数待控制台核实
+    rate-limit-per-minute: ${DEWU_RATE_PER_MINUTE:1000}
+    rate-limit-per-day: ${DEWU_RATE_PER_DAY:20000}
+    rate-limit-codes: [5030]
+    token-expired-codes: []                       # 待控制台核实 token 失效错误码后填写
+    token-refresh-ahead-seconds: 1800
 logging:
   pattern.console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} traceTask=%X{taskId} - %msg%n"

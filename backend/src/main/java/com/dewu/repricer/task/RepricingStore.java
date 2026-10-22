@@ -18,7 +18,7 @@ public interface RepricingStore {
     boolean ownEntityAtOrBelow(String ownerEntity, long skuPk, long price);
     void saveSnapshot(long shopId, long skuPk, Long lowest, boolean own, String source);
     void markItem(long itemId, String status, Long oldPrice, Long target, Long comp, String reason, int attempts, Long nextRetryAtMs, String requestId, String error);
-    void applyPrice(long shopId, long listingId, long itemId, Long oldPrice, long newPrice, Long verified, Long comp, Long strategyId, String reason);
+    void applyPrice(long shopId, long listingId, long itemId, String newExternalListingId, Long oldPrice, long newPrice, Long verified, Long comp, Long strategyId, String reason);
     void flagAnomaly(long listingId, String flag);
     void logApi(Long shopId, String adapter, String op, boolean ok, long latencyMs, String code, String msg);
     void refreshTaskCounters(long taskId);

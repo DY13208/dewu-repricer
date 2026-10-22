@@ -62,6 +62,21 @@ public class ApiController {
     public Object authorize(@PathVariable long id, @RequestBody(required = false) Map<String, String> b, @RequestHeader(value = "X-User", required = false) String u) {
         scope.check(u, id); return shops.authorize(id, b == null ? null : b.get("code"), u);
     }
+    /** 配置得物凭据：mode=SELF_DEVELOPED 需 appKey/appSecret（加密存储）；mode=ISV 之后走 /authorize 传 OAuth code。 */
+    public record CredentialReq(String mode, String appKey, String appSecret, Integer biddingType) {}
+    @PostMapping("/shops/{id}/credentials")
+    public Map<String, Object> credentials(@PathVariable long id, @RequestBody CredentialReq r, @RequestHeader(value = "X-User", required = false) String u) {
+        scope.check(u, id);
+        var mode = com.dewu.repricer.adapter.dewu.DewuCredential.Mode.valueOf(r.mode());
+        if (mode == com.dewu.repricer.adapter.dewu.DewuCredential.Mode.SELF_DEVELOPED && (r.appKey() == null || r.appSecret() == null))
+            throw new IllegalArgumentException("自研应用需填写 app_key 与 app_secret");
+        credStore.saveCredential(id, mode, r.appKey(), r.appSecret(), Optional.ofNullable(r.biddingType()).orElse(0));
+        audit.log(u, "SAVE_CREDENTIAL", id, "SHOP", String.valueOf(id), Map.of("mode", mode.name()));   // 不记录密钥
+        return Map.of("ok", true);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.dewu.repricer.adapter.dewu.JdbcDewuCredentialStore credStore;
+
     @PostMapping("/shops/{id}/sync")
     public Object sync(@PathVariable long id, @RequestHeader(value = "X-User", required = false) String u) { scope.check(u, id); return shops.sync(id, u); }
     @PostMapping("/shops/{id}/repricing")
@@ -117,18 +132,18 @@ public class ApiController {
         Object id = s.get("id");
         Object[] v = { s.get("name"), s.get("shop_id"), s.get("mode"), s.getOrDefault("offset_type", "AMOUNT"), num(s.get("offset_value"), 0),
                 s.get("min_profit"), s.get("min_price"), s.get("max_price"), num(s.get("fee_rate"), 0), num(s.get("fee_min"), 0), s.get("fee_max"),
-                num(s.get("fulfillment_fee"), 0), num(s.get("max_change_ratio"), 0.15), num(s.get("price_step"), 100), s.getOrDefault("enabled", true) };
+                num(s.get("fulfillment_fee"), 0), num(s.get("max_change_ratio"), 0.15), num(s.get("price_step"), 100), s.getOrDefault("enabled", true), s.getOrDefault("price_rule", "NONE") };
         if (id == null) {
             Long nid = jdbc.queryForObject("""
-                INSERT INTO pricing_strategies(name,shop_id,mode,offset_type,offset_value,min_profit,min_price,max_price,fee_rate,fee_min,fee_max,fulfillment_fee,max_change_ratio,price_step,enabled)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id""", Long.class, v);
+                INSERT INTO pricing_strategies(name,shop_id,mode,offset_type,offset_value,min_profit,min_price,max_price,fee_rate,fee_min,fee_max,fulfillment_fee,max_change_ratio,price_step,enabled,price_rule)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id""", Long.class, v);
             audit.log(u, "CREATE_STRATEGY", null, "STRATEGY", String.valueOf(nid), Map.of("name", String.valueOf(s.get("name"))));
             return Map.of("id", nid);
         }
         Object[] w = Arrays.copyOf(v, v.length + 1); w[v.length] = ((Number) id).longValue();
         jdbc.update("""
             UPDATE pricing_strategies SET name=?,shop_id=?,mode=?,offset_type=?,offset_value=?,min_profit=?,min_price=?,max_price=?,fee_rate=?,fee_min=?,fee_max=?,
-              fulfillment_fee=?,max_change_ratio=?,price_step=?,enabled=?,updated_at=now() WHERE id=?""", w);
+              fulfillment_fee=?,max_change_ratio=?,price_step=?,enabled=?,price_rule=?,updated_at=now() WHERE id=?""", w);
         audit.log(u, "UPDATE_STRATEGY", null, "STRATEGY", String.valueOf(id), Map.of());
         return Map.of("id", id);
     }

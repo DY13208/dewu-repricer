@@ -27,7 +27,12 @@ public class ShopService {
     /** 绑定授权。真实环境 token 须加密存储（此处列名 *_enc，生产应接入 KMS/Jasypt）。 */
     @Transactional
     public AuthResult authorize(long shopId, String code, String actor) {
-        AuthResult r = adapter(shopId).authorizeShop(ctx(shopId), code);
+        PlatformAdapter ad = adapter(shopId);
+        AuthResult r = ad.authorizeShop(ctx(shopId), code);
+        if ("DEWU_OPEN".equals(ad.type())) {   // 真实适配器自行加密保存 token
+            audit.log(actor, "AUTHORIZE_SHOP", shopId, "SHOP", String.valueOf(shopId), Map.of("success", r.success()));
+            return r;
+        }
         jdbc.update("""
             INSERT INTO shop_authorizations(shop_id,auth_type,credential_ref,access_token_enc,refresh_token_enc,expires_at,status,last_checked_at,last_error)
             VALUES (?, 'OAUTH2', ?, ?, ?, now() + (? || ' seconds')::interval, ?, now(), ?)
@@ -44,8 +49,24 @@ public class ShopService {
     public void monitorAuth() {
         jdbc.update("UPDATE shop_authorizations SET status='EXPIRING', last_checked_at=now() WHERE status='VALID' AND expires_at < now() + interval '3 days'");
         jdbc.update("UPDATE shop_authorizations SET status='EXPIRED', last_checked_at=now() WHERE status IN ('VALID','EXPIRING') AND expires_at < now()");
+        jdbc.update("UPDATE shop_authorizations SET status='EXPIRED' WHERE auth_mode='ISV' AND refresh_expires_at < now() AND status<>'EXPIRED'");
         jdbc.update("UPDATE shops SET repricing_enabled=false WHERE id IN (SELECT shop_id FROM shop_authorizations WHERE status='EXPIRED') AND repricing_enabled");
     }
+
+    /** ISV token 自动续期：提前刷新即将过期的 access_token。 */
+    @Scheduled(fixedDelay = 600_000, initialDelay = 60_000)
+    public void autoRefreshTokens() {
+        if (dewu == null) return;
+        for (Long id : jdbc.queryForList("""
+                SELECT a.shop_id FROM shop_authorizations a JOIN shops s ON s.id=a.shop_id
+                WHERE s.adapter_type='DEWU_OPEN' AND a.auth_mode='ISV' AND a.refresh_token_enc IS NOT NULL
+                  AND (a.expires_at IS NULL OR a.expires_at < now() + interval '1 hour') AND a.status<>'EXPIRED'""", Long.class)) {
+            try { dewu.refreshIfNeeded(id, false); }
+            catch (Exception e) { org.slf4j.LoggerFactory.getLogger(ShopService.class).warn("店铺 {} token 刷新失败: {}", id, e.getMessage()); }
+        }
+    }
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.dewu.repricer.adapter.dewu.DewuOpenPlatformAdapter dewu;
 
     /** 同步商品/SKU/出价：分页拉取并 upsert。 */
     @Transactional

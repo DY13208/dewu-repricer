@@ -26,10 +26,14 @@ class RepricingExecutorTest {
         public boolean ownEntityAtOrBelow(String o, long s, long p) { return ownBelow; }
         public void saveSnapshot(long a, long b, Long c, boolean d, String e) {}
         public void markItem(long id, String st, Long o, Long t, Long c, String r, int at, Long n, String rid, String err) { status = st; attempts = at; }
-        public void applyPrice(long s, long l, long i, Long o, long np, Long v, Long c, Long sid, String r) { applied = np; verified = v; }
+        public void applyPrice(long s, long l, long i, String ne, Long o, long np, Long v, Long c, Long sid, String r) { applied = np; verified = v; }
         public void flagAnomaly(long l, String f) { anomaly = f; }
         public void logApi(Long s, String a, String op, boolean ok, long ms, String c, String m) {}
         public void refreshTaskCounters(long t) {}
+    }
+    static DewuOpenPlatformAdapter inertDewu() {
+        var p = new DewuOpenProperties(null, null, null, null, null, null, null, false, 0, 0, null, null, null, 0, 0, 0);
+        return new DewuOpenPlatformAdapter(p, new com.dewu.repricer.adapter.dewu.DewuOpenAdapterContractTest.MemStore(), new DewuHttpClient(p, new InMemoryQuotaTracker(), System::currentTimeMillis), java.time.Clock.systemUTC());
     }
     MockPlatformAdapter mock; FakeStore store; InMemoryTaskQueue queue; RepricingExecutor exec; ShopCircuitBreaker breaker;
     static final Strategy BELOW100 = new Strategy(1, Strategy.Mode.BELOW, Strategy.OffsetType.AMOUNT, new BigDecimal("100"), null, null, null,
@@ -37,7 +41,7 @@ class RepricingExecutorTest {
 
     void setup(boolean globalDry, boolean taskDry, String adapter) {
         mock = new MockPlatformAdapter(); mock.setPrice("L1", 100000); mock.setCompetitor("S1", 99000L);
-        var reg = new AdapterRegistry(List.of(mock, new DewuOpenPlatformAdapter(new DewuOpenProperties(null, null, null))));
+        var reg = new AdapterRegistry(List.of(mock, inertDewu()));
         store = new FakeStore(); store.status = "PENDING";
         store.ctx = new RepricingStore.ItemContext(10, 1, taskDry, 5, 0, "t1:10", "PENDING", 1, "ACTIVE", true, adapter, null, "主体A", null,
                 1, "L1", 1, "S1", 100000L, false, null, null, BELOW100);

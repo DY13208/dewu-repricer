@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-button type="primary" @click="edit({ mode: 'BELOW', offset_type: 'AMOUNT', offset_value: 1, fee_rate: 0, fee_min: 0, fulfillment_fee: 0, max_change_ratio: 0.15, price_step: 100, enabled: true })">新建策略</el-button>
+    <el-button type="primary" @click="edit({ mode: 'BELOW', offset_type: 'AMOUNT', offset_value: 1, fee_rate: 0, fee_min: 0, fulfillment_fee: 0, max_change_ratio: 0.15, price_step: 100, price_rule: 'DEWU_900', enabled: true })">新建策略</el-button>
     <el-table :data="rows" style="margin-top:12px">
       <el-table-column prop="id" label="ID" width="60" /><el-table-column prop="name" label="名称" />
       <el-table-column label="规则"><template #default="{ row }">{{ modeText[row.mode] }} {{ row.offset_type === 'PERCENT' ? row.offset_value + '%' : fen2yuan(row.offset_value) + '元' }}</template></el-table-column>
@@ -32,6 +32,7 @@
         <el-form-item label="履约费用(分)"><el-input-number v-model="f.fulfillment_fee" /></el-form-item>
         <el-form-item label="单次变化熔断比例"><el-input-number v-model="f.max_change_ratio" :step="0.05" :min="0" /></el-form-item>
         <el-form-item label="价格步长(分)"><el-input-number v-model="f.price_step" :min="1" /></el-form-item>
+        <el-form-item label="平台价格规则"><el-select v-model="f.price_rule"><el-option value="NONE" label="无" /><el-option value="DEWU_900" label="得物：价格(分)以 900 结尾" /></el-select></el-form-item>
         <el-form-item label="启用"><el-switch v-model="f.enabled" /></el-form-item>
       </el-form>
       <template #footer><el-button type="primary" @click="save">保存</el-button></template>

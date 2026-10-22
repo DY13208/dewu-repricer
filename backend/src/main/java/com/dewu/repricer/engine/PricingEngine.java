@@ -24,7 +24,8 @@ public final class PricingEngine {
             case MATCH -> comp;
             case ABOVE -> comp + offset;
         };
-        long target = s.mode() == Strategy.Mode.ABOVE ? FeeCalculator.ceilStep(raw, s.priceStep()) : FeeCalculator.floorStep(raw, s.priceStep());
+        Strategy.PriceRule rule = s.priceRule() == null ? Strategy.PriceRule.NONE : s.priceRule();
+        long target = s.mode() == Strategy.Mode.ABOVE ? PriceRules.ceil(rule, raw, s.priceStep()) : PriceRules.floor(rule, raw, s.priceStep());
 
         Long minProfit = in.skuMinProfit() != null ? in.skuMinProfit() : s.minProfit();
         long floor = s.minPrice() == null ? 1 : s.minPrice();
@@ -32,13 +33,16 @@ public final class PricingEngine {
             if (in.cost() == null) return PricingDecision.of(BLOCK, null, "缺少采购成本，无法校验利润底线");
             floor = Math.max(floor, FeeCalculator.minPriceForProfit(s, in.cost(), minProfit));
         }
-        if (s.maxPrice() != null && floor > s.maxPrice())
+        floor = PriceRules.ceil(rule, floor, s.priceStep());
+        Long ceiling = s.maxPrice() == null ? null : PriceRules.floor(rule, s.maxPrice(), s.priceStep());
+        if (ceiling != null && floor > ceiling)
             return PricingDecision.of(BLOCK, null, "约束冲突：利润/最低价底线 " + floor + " 高于最高售价 " + s.maxPrice());
 
         String reason = "跟随竞争价 " + comp;
         if (target < floor) { target = floor; reason = "受底线约束，取底价 " + floor; }
-        if (s.maxPrice() != null && target > s.maxPrice()) { target = s.maxPrice(); reason = "受最高售价约束"; }
+        if (ceiling != null && target > ceiling) { target = ceiling; reason = "受最高售价约束"; }
 
+        if (!PriceRules.valid(rule, target)) return PricingDecision.of(BLOCK, target, "目标价不符合平台价格格式");
         long cur = in.currentPrice();
         if (target == cur) return PricingDecision.of(HOLD, cur, "价格无需调整");
 
