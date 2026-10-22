@@ -1,0 +1,30 @@
+server:
+  port: 8080
+spring:
+  application.name: dewu-repricer
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/repricer}
+    username: ${DB_USER:repricer}
+    password: ${DB_PASSWORD:repricer}
+  flyway.enabled: true
+  data.redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  quartz:
+    job-store-type: memory
+management:
+  endpoints.web.exposure.include: health,info,prometheus,metrics
+  endpoint.health.show-details: always
+repricer:
+  # 默认 dry-run：只计算不调用改价接口。真实改价须显式关闭且通过小规模测试方案。
+  dry-run: ${REPRICER_DRY_RUN:true}
+  scheduler-cron: ${REPRICER_CRON:0 */10 * * * ?}
+  max-attempts: 5
+  backoff-base-ms: 1000
+  backoff-max-ms: 300000
+  dewu-open:
+    base-url: ${DEWU_OPEN_BASE_URL:}
+    app-key: ${DEWU_APP_KEY:}
+    app-secret: ${DEWU_APP_SECRET:}
+logging:
+  pattern.console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} traceTask=%X{taskId} - %msg%n"
